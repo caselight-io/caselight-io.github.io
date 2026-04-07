@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caselight</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080810;
+    --surface: rgba(255,255,255,0.03);
+    --border: rgba(255,255,255,0.08);
+    --text-primary: #f0ede6;
+    --text-muted: rgba(240,237,230,0.4);
+    --accent: #c8b89a;
+    --accent-glow: rgba(200,184,154,0.15);
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: 'DM Mono', monospace;
+    overflow-x: hidden;
+  }
+
+  canvas#bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .noise {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+  }
+
+  main {
+    position: relative;
+    z-index: 2;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+  }
+
+  .eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 300;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 2.5rem;
+    opacity: 0;
+    animation: fadeUp 1s ease 0.3s forwards;
+  }
+
+  .wordmark {
+    width: clamp(180px, 35vw, 320px);
+    height: auto;
+    margin-bottom: 2rem;
+    opacity: 0;
+    animation: fadeUp 1s ease 0.5s forwards;
+  }
+
+  .tagline {
+    font-family: 'DM Mono', monospace;
+    font-size: clamp(11px, 1.5vw, 13px);
+    font-weight: 300;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    max-width: 420px;
+    line-height: 1.8;
+    margin-bottom: 4rem;
+    opacity: 0;
+    animation: fadeUp 1s ease 0.7s forwards;
+  }
+
+  .signup-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    max-width: 380px;
+    opacity: 0;
+    animation: fadeUp 1s ease 0.9s forwards;
+  }
+
+  .input-row {
+    display: flex;
+    width: 100%;
+    border: 0.5px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    background: var(--surface);
+    backdrop-filter: blur(12px);
+    transition: border-color 0.3s;
+  }
+
+  .input-row:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  .input-row input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 0.85rem 1rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--text-primary);
+    letter-spacing: 0.04em;
+  }
+
+  .input-row input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .input-row button {
+    background: var(--accent);
+    border: none;
+    padding: 0 1.25rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #080810;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    white-space: nowrap;
+  }
+
+  .input-row button:hover { opacity: 0.85; }
+  .input-row button:active { transform: scale(0.97); }
+
+  .fine-print {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+  }
+
+  .status {
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    min-height: 16px;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  .status.show { opacity: 1; }
+
+  .bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 3;
+    padding: 1.25rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 0.5px solid var(--border);
+    backdrop-filter: blur(20px);
+    background: rgba(8,8,16,0.5);
+    opacity: 0;
+    animation: fadeIn 1.2s ease 1.4s forwards;
+  }
+
+  .bottom-bar span {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(0.7); }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+<div class="noise"></div>
+
+<main>
+  <p class="eyebrow">coming soon &mdash; private beta</p>
+  <img src="logo.png" alt="Caselight" class="wordmark" />
+  <p class="tagline">something is being built in the dark.<br>we'll let you know when the lights come on.</p>
+
+  <div class="signup-wrap">
+    <div class="input-row">
+      <input type="email" id="email" placeholder="your@email.com" autocomplete="email" />
+      <button onclick="handleSignup()">notify me</button>
+    </div>
+    <p class="status" id="status"></p>
+    <p class="fine-print">no spam. no noise. just the signal.</p>
+  </div>
+</main>
+
+
+
+<script>
+function handleSignup() {
+  const el = document.getElementById('email');
+  const st = document.getElementById('status');
+  const v = el.value.trim();
+  if (!v || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+    st.textContent = '— enter a valid email address';
+    st.classList.add('show');
+    return;
+  }
+  st.textContent = '— you\'re on the list. see you on the other side.';
+  st.classList.add('show');
+  el.value = '';
+  el.disabled = true;
+  document.querySelector('.input-row button').disabled = true;
+}
+
+document.getElementById('email').addEventListener('keydown', e => {
+  if (e.key === 'Enter') handleSignup();
+});
+
+(function() {
+  const canvas = document.getElementById('bg');
+  const ctx = canvas.getContext('2d');
+
+  const COLORS = [
+    'rgba(200,184,154,',
+    'rgba(147,119,90,',
+    'rgba(90,80,140,',
+    'rgba(70,100,160,',
+    'rgba(160,70,100,',
+    'rgba(80,150,130,',
+    'rgba(180,100,60,',
+    'rgba(100,60,180,',
+  ];
+
+  function resize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function randRange(a, b) { return a + Math.random() * (b - a); }
+
+  function makePolygon() {
+    const sides  = Math.floor(randRange(3, 9));
+    const radius = randRange(30, 130);
+    const color  = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const alpha  = randRange(0.03, 0.12);
+    return {
+      x:      randRange(-100, canvas.width  + 100),
+      y:      randRange(-100, canvas.height + 100),
+      radius,
+      sides,
+      color,
+      alpha,
+      targetAlpha: alpha,
+      rotation: randRange(0, Math.PI * 2),
+      rotSpeed: randRange(-0.003, 0.003),
+      vx:      randRange(-0.25, 0.25),
+      vy:      randRange(-0.18, 0.18),
+      filled:  Math.random() > 0.5,
+    };
+  }
+
+  const polygons = Array.from({ length: 30 }, makePolygon);
+
+  function drawPolygon(p) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rotation);
+    ctx.beginPath();
+    for (let i = 0; i < p.sides; i++) {
+      const angle = (i / p.sides) * Math.PI * 2 - Math.PI / 2;
+      const px = Math.cos(angle) * p.radius;
+      const py = Math.sin(angle) * p.radius;
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    if (p.filled) {
+      ctx.fillStyle = p.color + p.alpha + ')';
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = p.color + (p.alpha * 1.8) + ')';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function tick() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (const p of polygons) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rotation += p.rotSpeed;
+
+      const pad = p.radius + 150;
+      if (p.x < -pad)                  p.x = canvas.width  + pad;
+      if (p.x > canvas.width  + pad)   p.x = -pad;
+      if (p.y < -pad)                  p.y = canvas.height + pad;
+      if (p.y > canvas.height + pad)   p.y = -pad;
+
+      drawPolygon(p);
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  tick();
+})();
+</script>
+</body>
+</html>
